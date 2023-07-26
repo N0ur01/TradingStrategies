@@ -1,0 +1,105 @@
+//@version=4
+study(title="MACD Custom Function", shorttitle="MACD CF")
+
+// Custom MACD Function
+macd(source, short, long, signal) =>
+    macdLine = ema(source, short) - ema(source, long)
+    signalLine = ema(macdLine, signal)
+    [macdLine, signalLine]
+
+// Define parameters
+shortPeriod = input(12, title="Short Period")
+longPeriod = input(26, title="Long Period")
+signalPeriod = input(9, title="Signal Period")
+
+[macdLine, signalLine] = macd(close, shortPeriod, longPeriod, signalPeriod)
+
+// Plot MACD line
+plot(macdLine, color=color.blue, title="MACD Line")
+
+// Plot signal line
+plot(signalLine, color=color.red, title="Signal Line")
+
+// Plot histogram
+plot(macdLine - signalLine, style=plot.style_histogram, color=color.green, linewidth=1,title="Histogram")
+
+study("Custom MACD Strategy", shorttitle="MACD Strategy", overlay=true)
+
+// Custom Function: Replace All Occurrences of a Substring within a String
+replace_all(str, search, replace) =>
+    join(str.split(str, search), replace)
+
+// Custom Function: Join an Array of Strings into a Single String
+join(arr, separator) =>
+    result = ""
+    for i = 0 to array.size(arr) - 1
+        if i > 0
+            result := result + separator
+        result := result + array.get(arr,i)
+    result
+
+// Custom Function: Get Parameter by Name
+getParameterByName(name) =>
+    name = replace_all(name,"[","\\[")
+    name = replace_all(name,"]","\\]")
+    results = input(name,"Results",type=input.string)
+    results == "" ? "" : decode(replace_all(results,"+"," "))
+
+// Custom Function: Get Ticker from Name
+get_ticker_from_name(name) =>
+    name_array = str.split(name ,":")
+    time_frame = ""
+    if name_array[2] == "M1"
+        time_frame := "60"
+    else if name_array[2] == "M5"
+        time_frame := "300"
+    else if name_array[2] == "M15"
+        time_frame := "900"
+    else if name_array[2] == "M30"
+        time_frame := "1800"
+    else if name_array[2] == "H1"
+        time_frame := "3600"
+    else if name_array[2] == "H4"
+        time_frame := "14400"
+    else if name_array[2] == "D1"
+        time_frame := "86400"
+    else if name_array[2] == "1W"
+        time_frame := "604800"
+    else if name_array[2] == "1M"
+        time_frame := "2592000"
+    name_array[1] + "|" + name_array[0] + "|1|" + time_frame
+
+// Get ticker and MACD parameters from URL parameters
+ticker = getParameterByName("ticker")
+macdSource = getParameterByName("src")
+macdShort = float(getParameterByName("short"))
+macdLong = float(getParameterByName("long"))
+macdSignal = float(getParameterByName("signal"))
+macdTrendWeight = float(getParameterByName("trendWeight"))
+
+// Convert ticker to TradingView's market ticker format
+tickerFormatted = get_ticker_from_name(ticker)
+
+// Calculate MACD
+[macdLine ,signalLine ]= macd(close ,macdShort ,macdLong ,macdSignal)
+
+// Compute trend strength
+macdTrendStrength=((macdLine - signalLine)/syminfo.mintick)*macdTrendWeight
+
+// Plot MACD Histogram
+barcolor(macdLine >= signalLine ? macdTrendStrength >= 0 ? macdTrendStrength >= macdTrendStrength[1] ? color.green : color.new(color.green ,50) : na : macdTrendStrength < 0 ? macdTrendStrength <= macdTrendStrength[1] ? color.red : color.new(color.red ,50) : na)
+plot(macdLine - signalLine ,color=macdLine >= signalLine ? color.green : color.red ,linewidth=2,title="MACD Histogram")
+
+// Add title to the chart
+titleLabelString = "MACD Strategy: "+ tickerFormatted + " "+ macdShort + ", "+ macdLong + ", "+ macdSignal
+titleLabel=label.new(x=bar_index,y=high ,style=label.style_label_left,text=titleLabelString,color=color.new(color.blue ,0),textcolor=color.white,size=size.small)
+// Change label color based on the histogram direction
+labelColor=macdLine >= signalLine ? color.green : color.red
+label.set_color(titleLabel,labelColor)
+
+// Plot the MACD lines on separate panes
+plot(macdLine,color=color.blue ,linewidth=2,title="MACD Line")
+plot(signalLine,color=color.red ,linewidth=2,title="Signal Line")
+
+// Fill the space between the MACD lines
+fill(macdLine ,signalLine ,color=color.blue ,transp=70,title="MACD Fill")
